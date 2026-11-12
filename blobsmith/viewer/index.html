@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>blobsmith run</title>
+<style>
+  :root{
+    --bg:#0d0d10; --panel:#16161b; --line:#26262e; --text:#f1efe9; --dim:#8f8d96;
+    --a:#ffb08a; --b:#8fe0c4; --c:#b9a8ff; --ar:1;
+    --aw:clamp(210px,22vw,300px);
+    --pw:min(calc((100vw - var(--aw) - 106px) / 3), calc((100vh - 318px) * var(--ar)));
+  }
+  *{box-sizing:border-box;margin:0}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+    display:flex;flex-direction:column;padding:20px 28px 18px;gap:14px;overflow:hidden}
+  header{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+  h1{font-size:25px;font-weight:650;letter-spacing:-.02em}
+  h1 em{font-style:normal;color:var(--a)}
+  header p{color:var(--dim);font-size:14px}
+  header a{margin-left:auto;color:var(--a);text-decoration:none;font-size:13px}
+  main{flex:1;display:flex;gap:16px;align-items:center;justify-content:center;min-height:0}
+  figure{width:var(--pw);flex:none}
+  figcaption{display:flex;justify-content:space-between;align-items:center;height:30px;font-size:12px;
+    text-transform:uppercase;letter-spacing:.09em;color:var(--dim);white-space:nowrap;gap:8px}
+  figcaption b{color:var(--text);font-weight:600}
+  .pic{width:var(--pw);aspect-ratio:var(--ar);border-radius:10px;overflow:hidden;background:#000;position:relative;border:1px solid var(--line)}
+  .pic img{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .note{margin-top:8px;font-size:12.5px;color:var(--dim);min-height:36px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{all:unset;cursor:pointer;padding:3px 9px;font-size:11px;letter-spacing:.06em;color:var(--dim)}
+  .seg button.on{background:var(--a);color:#1b120c;font-weight:650}
+  aside{width:var(--aw);flex:none;display:flex;flex-direction:column;gap:10px;padding-top:30px;
+    height:calc(var(--pw) / var(--ar) + 30px);min-height:250px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+  .stat b{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .stat small{color:var(--dim);font-size:11px}
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;flex:1;min-height:0;display:flex;flex-direction:column}
+  .chart svg{flex:1;min-height:0;width:100%}
+  .key{display:flex;gap:14px;font-size:11px;color:var(--dim)}
+  .key i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  footer{display:flex;flex-direction:column;gap:10px}
+  .scrub{display:flex;align-items:center;gap:14px}
+  #play{all:unset;cursor:pointer;width:38px;height:38px;border-radius:50%;background:var(--a);color:#1b120c;
+    display:grid;place-items:center;font-size:14px;flex:none}
+  .track{flex:1;position:relative;min-width:0}
+  .bands{display:flex;height:22px;border-radius:6px;overflow:hidden;font-size:11px;margin-bottom:6px}
+  .bands div{display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;color:#141418;font-weight:600;min-width:0}
+  input[type=range]{width:100%;margin:0;accent-color:var(--a);display:block}
+  .loop{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px;display:flex;gap:10px;align-items:flex-start;min-width:0;transition:border-color .15s,background .15s}
+  .card.on{border-color:var(--a);background:#1f1a18}
+  .card i{font-style:normal;flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--dim);display:grid;place-items:center;font-size:11px;color:var(--dim)}
+  .card.on i{background:var(--a);border-color:var(--a);color:#1b120c;font-weight:700}
+  .card b{display:block;font-size:13px}
+  .card span{font-size:12px;color:var(--dim)}
+  @media (max-width:1150px){
+    figcaption>span:not(.seg){display:none}
+    .stat{padding:6px 10px}.stat b{font-size:18px}.stat span{font-size:10px}
+    h1{font-size:20px}
+  }
+  @media (max-width:700px){
+    html,body{height:auto}
+    body{overflow-x:hidden;overflow-y:auto;padding:16px}
+    :root{--pw:min(calc(100vw - 32px), 420px)}
+    main{flex-direction:column;align-items:center}
+    aside{width:var(--pw);height:auto;padding-top:0}
+    .chart{height:170px}
+    .bands div{padding:0 4px}
+    .loop{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>One photo, rebuilt out of <em id="hN"></em> blobs of colour.</h1>
+  <p>A short program began with random blobs and kept correcting them. Drag the bar to replay it.</p>
+  <a href="film.html">Side-by-side film →</a>
+</header>
+
+<main>
+  <figure>
+    <figcaption><b>Target</b><span>the photo</span></figcaption>
+    <div class="pic"><img src="photo.jpg" alt="The original photo"></div>
+    <p class="note">All the program gets is these pixels. It has no idea what is in the picture.</p>
+  </figure>
+  <figure>
+    <figcaption><b>Blobs</b>
+      <span class="seg"><button id="vSoft" class="on">SOFT</button><button id="vDisc">DISCS</button></span></figcaption>
+    <div class="pic"><img id="frame" alt="The blob painting at this round"><img id="discs" src="discs.jpg" alt="Every blob drawn as a hard disc" hidden></div>
+    <p class="note" id="blobNote"></p>
+  </figure>
+  <figure>
+    <figcaption><b>Error</b><span>difference, 5× brighter</span></figcaption>
+    <div class="pic"><img id="err" alt="Where the painting still differs from the photo"></div>
+    <p class="note">The brighter a spot, the further off it is. That is where the next blobs land.</p>
+  </figure>
+  <aside>
+    <div class="stats">
+      <div class="stat"><span>Round</span><b id="sStep">0</b> <small id="sOf"></small></div>
+      <div class="stat"><span>Blobs</span><b id="sBlobs">0</b></div>
+      <div class="stat"><span>Error</span><b id="sErr">0</b> <small>/ 255</small></div>
+      <div class="stat"><span>Match</span><b id="sPsnr">0</b> <small>dB</small></div>
+    </div>
+    <div class="chart">
+      <div class="key"><span><i style="background:var(--a)"></i>error</span><span><i style="background:var(--b)"></i>blob count</span></div>
+      <svg id="chart" viewBox="0 0 280 150" preserveAspectRatio="none"></svg>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="scrub">
+    <button id="play" aria-label="Play or pause">❚❚</button>
+    <div class="track">
+      <div class="bands" id="bands"></div>
+      <input id="bar" type="range" min="0" value="0" aria-label="Training round">
+    </div>
+  </div>
+  <div class="loop">
+    <div class="card"><i>1</i><div><b>Paint</b><span>Draw every blob. A blob is nine numbers: where, how big, which way, what colour, how strong.</span></div></div>
+    <div class="card"><i>2</i><div><b>Compare</b><span>Subtract the photo. What is left over is boiled down to a single score.</span></div></div>
+    <div class="card"><i>3</i><div><b>Correct</b><span>Calculus gives each number a direction that lowers the score. Take a small step.</span></div></div>
+    <div class="card"><i>4</i><div><b>Again</b><span id="again"></span></div></div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script>
+const M = window.RUN, RUN = M.frames, N = RUN.length, $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+document.documentElement.style.setProperty("--ar", M.width / M.height);
+$("hN").textContent = fmt(M.blobs); $("sOf").textContent = "/ " + fmt(M.steps); $("bar").max = N - 1;
+$("again").textContent = `${fmt(M.steps)} rounds in all. Every ${M.grow_every}, more blobs go where the error is.`;
+
+const load = u => { const im = new Image(); im.onerror = () => setTimeout(() => { im.src = u + "?r=" + Date.now(); }, 400); im.src = u; return im; };
+const frames = RUN.map((_, i) => load(`f/${i}.jpg`)), errs = RUN.map((_, i) => load(`e/${i}.jpg`));
+
+// the four stages of a run, laid along the bar
+const quarter = Math.round(M.width / 4), half = Math.round(M.width / 2);
+const stages = [
+  {until: M.draft_until, label: `Rough draft · ${quarter}px wide`, col: "var(--c)", note: "Working on a tiny copy of the photo, so the large shapes fall into place first."},
+  {until: M.half_until,  label: `Tighter · ${half}px wide`, col: "#d6b4f0", note: "The same blobs, now held up against a copy twice as sharp."},
+  {until: M.grow_until,  label: "Full size · new blobs go where the error is", col: "var(--a)", note: M.crop ? "Full size now, one random patch per round, with small blobs added wherever it is furthest off." : "Full size now, with small blobs added wherever it is furthest off."},
+  {until: Infinity,      label: "Fine-tune · blob count fixed", col: "var(--b)", note: "Nothing new is added. Each blob only adjusts its place, shape and colour."},
+];
+let prev = 0;
+stages.forEach(p => {
+  let end = RUN.findIndex(r => r[0] >= p.until); if (end < 0) end = N;
+  p.from = prev;
+  if (end > prev) {
+    const d = document.createElement("div");
+    d.style.cssText = `flex:${end - prev};background:${p.col}`; d.textContent = p.label; d.title = p.label;
+    $("bands").appendChild(d);
+  }
+  prev = end;
+});
+
+// chart: error (square-root scale) and blob count against rounds
+const W = 280, H = 150, maxE = Math.max(...RUN.map(r => r[3])), maxB = Math.max(...RUN.map(r => r[1])), maxS = RUN[N - 1][0] || 1;
+const X = s => 4 + s / maxS * (W - 8), YE = e => 8 + (1 - Math.sqrt(e / maxE)) * (H - 16), YB = b => H - 8 - b / maxB * (H - 16);
+const path = f => RUN.map((r, i) => (i ? "L" : "M") + X(r[0]).toFixed(1) + " " + f(r).toFixed(1)).join("");
+$("chart").innerHTML =
+  `<path d="${path(r => YE(r[3]))}" fill="none" stroke="var(--a)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+   <path d="${path(r => YB(r[1]))}" fill="none" stroke="var(--b)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+   <line id="cur" y1="0" y2="${H}" stroke="#fff" stroke-opacity=".5" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+
+let i = 0, playing = true, discs = false, tick = 0;
+function show(k) {
+  i = Math.max(0, Math.min(N - 1, k));
+  const [step, blobs, db, e] = RUN[i];
+  $("frame").src = frames[i].src; $("err").src = errs[i].src; $("bar").value = i;
+  $("sStep").textContent = fmt(step + 1); $("sBlobs").textContent = fmt(blobs);
+  $("sErr").textContent = e.toFixed(1); $("sPsnr").textContent = db.toFixed(1);
+  $("cur").setAttribute("x1", X(step)); $("cur").setAttribute("x2", X(step));
+  const st = stages.filter(p => i >= p.from).pop();
+  $("blobNote").textContent = discs ? "The finished picture with soft edges switched off, so each blob shows as its own flat shape."
+    : i === 0 ? `Round one: ${fmt(M.start_blobs)} blobs scattered at random.` : st.note;
+}
+function setDiscs(on) {
+  discs = on; $("discs").hidden = !on;
+  $("vDisc").classList.toggle("on", on); $("vSoft").classList.toggle("on", !on);
+  if (on) { setPlaying(false); show(N - 1); } else show(i);
+}
+function setPlaying(p) { playing = p; $("play").textContent = p ? "❚❚" : "▶"; }
+$("vDisc").onclick = () => setDiscs(true);
+$("vSoft").onclick = () => setDiscs(false);
+$("play").onclick = () => { if (discs) setDiscs(false); if (!playing && i >= N - 1) show(0); setPlaying(!playing); };
+$("bar").oninput = e => { if (discs) setDiscs(false); setPlaying(false); show(+e.target.value); };
+const cards = [...document.querySelectorAll(".card")];
+setInterval(() => {
+  if (!playing) { cards.forEach(c => c.classList.remove("on")); return; }
+  cards.forEach((c, k) => c.classList.toggle("on", k === tick % 4)); tick++;
+  if (i >= N - 1) { setPlaying(false); return; }
+  show(i + 1);
+}, 110);
+show(0);
+</script>
+</body>
+</html>

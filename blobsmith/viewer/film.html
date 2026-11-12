@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>blobsmith film</title>
+<style>
+  :root{--bg:#0d0d10;--line:#26262e;--text:#f1efe9;--dim:#8f8d96;--a:#ffb08a;--ar:1}
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{background:#000;display:grid;place-items:center;overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;color:var(--text)}
+  /* a fixed 16:9 stage that scales with the window, so a screen recording always frames the same */
+  .stage{width:min(100vw,calc(100vh * 16 / 9));aspect-ratio:16/9;background:var(--bg);container-type:size;
+    --pw:min(38cqw, calc(38cqw * var(--ar)));
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2cqw}
+  .row{display:flex;gap:2.5cqw;align-items:flex-start}
+  figure{width:var(--pw)}
+  .pic{width:var(--pw);aspect-ratio:var(--ar);border-radius:1.1cqw;overflow:hidden;position:relative;background:#000;border:1px solid var(--line)}
+  .pic img{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #discs{opacity:0;transition:opacity .5s}
+  #discs.on{opacity:1}
+  figcaption{display:flex;justify-content:space-between;align-items:baseline;margin-top:1.1cqw;
+    font-size:1.45cqw;font-weight:650;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+  figcaption span{font-weight:500;color:var(--dim);letter-spacing:.02em;text-transform:none;font-variant-numeric:tabular-nums}
+  .blobs b{color:var(--a);font-weight:650}
+  .how{width:calc(2 * var(--pw) + 2.5cqw);min-width:60cqw;display:flex;align-items:center;gap:1.6cqw}
+  #cap{flex:1;font-size:1.9cqw;font-weight:500;letter-spacing:-.01em;min-height:2.6cqw}
+  .bar{width:18cqw;height:.45cqw;border-radius:1cqw;background:var(--line);overflow:hidden;flex:none}
+  .bar i{display:block;height:100%;width:0;background:var(--a)}
+  nav{position:absolute;top:1.4cqw;right:1.8cqw;font-size:1.1cqw;display:flex;gap:1.4cqw;opacity:.55}
+  nav a,nav button{all:unset;cursor:pointer;color:var(--dim)}
+  nav a:hover,nav button:hover{color:var(--text)}
+  .clean nav{display:none}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <nav><button id="clean" title="Hide these links for a clean screen recording (press C to bring them back)">Hide controls</button><a href="index.html">Full breakdown →</a></nav>
+  <div class="row">
+    <figure>
+      <div class="pic"><img src="photo.jpg" alt="The original photo"></div>
+      <figcaption>Photo</figcaption>
+    </figure>
+    <figure class="blobs">
+      <div class="pic"><img id="frame" alt="The blob painting forming"><img id="discs" src="discs.jpg" alt="The blobs drawn as hard discs"></div>
+      <figcaption><b id="count"></b><span id="step"></span></figcaption>
+    </figure>
+  </div>
+  <div class="how"><div id="cap"></div><div class="bar"><i id="prog"></i></div></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const M = window.RUN, RUN = M.frames, N = RUN.length, $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+document.documentElement.style.setProperty("--ar", M.width / M.height);
+const imgs = RUN.map((_, i) => { const u = `f/${i}.jpg`, im = new Image(); im.onerror = () => setTimeout(() => { im.src = u + "?r=" + Date.now(); }, 400); im.src = u; return im; });
+
+// the film: every recorded frame, a pause, the disc view, and back
+const shots = [];
+for (let i = 0; i < N; i++) shots.push({i, ms: i < 10 ? 280 : 75});
+shots.push({i: N - 1, ms: 1800, hold: true}, {i: N - 1, ms: 2800, discs: true}, {i: N - 1, ms: 1400, hold: true});
+const total = shots.reduce((s, x) => s + x.ms, 0);
+
+// same wording as caption() in media.py
+function caption(s) {
+  const step = RUN[s.i][0];
+  if (s.discs) return "Here are those same blobs with hard edges.";
+  if (s.hold) return `${fmt(M.steps)} rounds in: ${fmt(M.blobs)} blobs, and no AI image model.`;
+  if (s.i < 5) return `It begins as ${fmt(M.start_blobs)} blobs with random colours.`;
+  if (step < M.half_until) return "Paint the blobs, compare with the photo, correct each one slightly.";
+  if (step < M.grow_until) return "Wherever the picture is still off, drop in a few smaller blobs.";
+  return "No more new blobs. The ones already there just fine-tune.";
+}
+function draw(k, elapsed) {
+  const s = shots[k], [step, blobs] = RUN[s.i];
+  $("frame").src = imgs[s.i].src;
+  $("discs").classList.toggle("on", !!s.discs);
+  $("count").textContent = fmt(blobs) + " blobs";
+  $("step").textContent = "round " + fmt(step + 1);
+  $("cap").textContent = caption(s);
+  $("prog").style.width = (100 * Math.min(1, elapsed / total)).toFixed(2) + "%";
+}
+let k = 0, elapsed = 0;
+(function next() {
+  draw(k, elapsed);
+  const ms = shots[k].ms;
+  setTimeout(() => { elapsed += ms; if (++k >= shots.length) { k = 0; elapsed = 0; } next(); }, ms);
+})();
+$("clean").onclick = () => $("stage").classList.add("clean");
+addEventListener("keydown", e => { if (e.key.toLowerCase() === "c") $("stage").classList.toggle("clean"); });
+</script>
+</body>
+</html>
